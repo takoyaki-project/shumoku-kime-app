@@ -1,3 +1,5 @@
+https://takoyaki-project.github.io/shumoku-kime-app/
+
 # 種目決めアプリ
 
 さくら町一丁目子供会の、町内会運動会 参加種目わりあてを自動化するツールです。
