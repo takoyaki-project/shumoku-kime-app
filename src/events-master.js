@@ -1,0 +1,430 @@
+// 種目マスタ.json をブラウザで file:// から直接開いても読み込めるように
+// JS定数として埋め込んだもの。中身は種目マスタ.json と同一。
+// 種目内容を更新したい場合は 種目マスタ.json を編集した上で、
+// このファイルも合わせて作り直すこと（変換スクリプト: 特になし。手動でJSON部分を貼り替えでよい）。
+const EVENTS_MASTER = {
+  "_note": "甲一（甲子園一番町）向け種目マスタ。種目名は『去年のGoogleフォーム（今年もそのまま使用）』の実際の文言を正とする。募集人数は2026年度PDF按分（甲一分）を正とする（フォームの古い人数は使わない）。",
+  "normalize_rule": "先頭の☆記号・丸数字・半角/全角数字・「．」「.」「、」を除去し、前後の空白を削って比較する（例：『☆２２．地区対抗リレー（中学生以上　女子）』→『地区対抗リレー（中学生以上　女子）』）",
+  "duplicate_column_rule": "同じ正規化後の種目名を持つ列が複数ある場合、1人の回答者はフォームの年齢分岐により、どれか1列にしか値を持たない。空でない列の値を採用する。",
+  "ignore_columns": [
+    "メールアドレス",
+    "Email",
+    "Email Address",
+    "タイムスタンプ"
+  ],
+  "events": [
+    {
+      "id": "e01",
+      "name": "グラウンドゴルフリレー",
+      "aliases": [],
+      "target": "50歳以上",
+      "capacity_total": 5,
+      "subquota": null,
+      "timeslot": "AM",
+      "scored": true,
+      "description": "グラウンドゴルフ形式によるリレー"
+    },
+    {
+      "id": "e02",
+      "name": "リングなわとび",
+      "aliases": [],
+      "target": "4〜6年",
+      "capacity_total": 4,
+      "subquota": null,
+      "timeslot": "AM",
+      "scored": false,
+      "description": "フラフープで縄跳びをしながらリレー"
+    },
+    {
+      "id": "e03",
+      "name": "マリツキさん",
+      "aliases": [],
+      "target": "40歳以上",
+      "capacity_total": 5,
+      "subquota": null,
+      "timeslot": "AM",
+      "scored": false,
+      "description": "ゴムボールを手でドリブルしながらリレー",
+      "_note": "去年フォームでは『中学生〜49歳』セクションに置かれているが、対象は40歳以上。対象外年代にも質問自体は表示されるので、本人の自己判断に委ねる"
+    },
+    {
+      "id": "e04",
+      "name": "ミニつな引き",
+      "aliases": [],
+      "target": "1〜3年",
+      "capacity_total": 9,
+      "subquota": {
+        "type": "grade",
+        "breakdown": {
+          "1年": 3,
+          "2年": 3,
+          "3年": 3
+        }
+      },
+      "timeslot": "AM",
+      "scored": true,
+      "description": "低学年のつな引き"
+    },
+    {
+      "id": "e05",
+      "name": "ペアで協力",
+      "aliases": [],
+      "target": "中学生以上",
+      "capacity_total": 8,
+      "subquota": {
+        "type": "gender",
+        "breakdown": {
+          "男": 4,
+          "女": 4
+        }
+      },
+      "timeslot": "AM",
+      "scored": true,
+      "description": "男女ペアの二人三脚"
+    },
+    {
+      "id": "e06",
+      "name": "障害物競走",
+      "aliases": [
+        "障害物走"
+      ],
+      "target": "4〜6年",
+      "capacity_total": 2,
+      "subquota": null,
+      "timeslot": "AM",
+      "scored": false,
+      "description": "",
+      "_note": "去年フォーム原文にも説明文が無い。実際の競技内容は要確認"
+    },
+    {
+      "id": "e07",
+      "name": "デカパン競争",
+      "aliases": [
+        "デカパン走"
+      ],
+      "target": "就学前児童",
+      "capacity_total": 4,
+      "subquota": null,
+      "timeslot": "AM",
+      "scored": false,
+      "description": "大きいズボンに子供ふたりが入ってリレー"
+    },
+    {
+      "id": "e08",
+      "name": "大玉ころがし",
+      "aliases": [],
+      "target": "1〜6年",
+      "capacity_total": 8,
+      "subquota": {
+        "type": "grade_band",
+        "breakdown": {
+          "低学年(1-3年)": 4,
+          "高学年(4-6年)": 4
+        }
+      },
+      "timeslot": "AM",
+      "scored": true,
+      "description": "1組2名で大玉ころがし"
+    },
+    {
+      "id": "e09",
+      "name": "女子紅白対抗つな引き",
+      "aliases": [
+        "女子紅白対抗綱引き"
+      ],
+      "target": "中学生以上（女子）",
+      "capacity_total": 6,
+      "subquota": null,
+      "timeslot": "AM",
+      "scored": true,
+      "description": "中学生以上の女性だけのつな引き"
+    },
+    {
+      "id": "e10",
+      "name": "パンくい競争",
+      "aliases": [
+        "パン食い競争",
+        "パンくい走",
+        "パン食い走"
+      ],
+      "target": "小学生",
+      "capacity_total": 5,
+      "subquota": null,
+      "timeslot": "AM",
+      "scored": false,
+      "description": "小学生によるパン食い競争"
+    },
+    {
+      "id": "e11",
+      "name": "ワイワイガヤガヤむむかで",
+      "aliases": [
+        "ワイワイガヤガヤむかで",
+        "ワイワイ・ガヤガヤ・むかで",
+        "ワイワイ・ガヤガヤ・むかで競走"
+      ],
+      "target": "1〜3年／4〜6年／中学生以上",
+      "capacity_total": 15,
+      "subquota": {
+        "type": "grade_band",
+        "breakdown": {
+          "1-3年": 6,
+          "4-6年": 6,
+          "中学生以上": 3
+        }
+      },
+      "timeslot": "AM",
+      "scored": true,
+      "description": "6人組になり、むかでロープでリレー"
+    },
+    {
+      "id": "e12",
+      "name": "早飲み競走",
+      "aliases": [],
+      "target": "中学生以上",
+      "capacity_total": 4,
+      "subquota": {
+        "type": "gender",
+        "breakdown": {
+          "男": 2,
+          "女": 2
+        }
+      },
+      "timeslot": "PM",
+      "scored": true,
+      "description": "ラムネ早飲みが入るリレー"
+    },
+    {
+      "id": "e13",
+      "name": "地区対抗リレー（小学生女子）",
+      "aliases": [
+        "地区対抗リレー（女児）"
+      ],
+      "target": "1〜6年（女児）",
+      "capacity_total": 12,
+      "subquota": {
+        "type": "grade",
+        "breakdown": {
+          "1年": 2,
+          "2年": 2,
+          "3年": 2,
+          "4年": 2,
+          "5年": 2,
+          "6年": 2
+        }
+      },
+      "timeslot": "PM",
+      "scored": true,
+      "description": "全員半周のリレー"
+    },
+    {
+      "id": "e14",
+      "name": "徒競走",
+      "aliases": [],
+      "target": "就学前児童（一人で参加できる）",
+      "capacity_total": 3,
+      "subquota": null,
+      "timeslot": "PM",
+      "scored": false,
+      "description": "20mをジグザグに走りゴール",
+      "_note": "『徒競走（就学前児童）』（e16）とは別の種目。名前が似ているので取り違えに注意"
+    },
+    {
+      "id": "e15",
+      "name": "地区対抗リレー（小学生男子）",
+      "aliases": [
+        "地区対抗リレー（男児）"
+      ],
+      "target": "1〜6年（男児）",
+      "capacity_total": 12,
+      "subquota": {
+        "type": "grade",
+        "breakdown": {
+          "1年": 2,
+          "2年": 2,
+          "3年": 2,
+          "4年": 2,
+          "5年": 2,
+          "6年": 2
+        }
+      },
+      "timeslot": "PM",
+      "scored": true,
+      "description": "全員半周のリレー"
+    },
+    {
+      "id": "e16",
+      "name": "徒競走（就学前児童）",
+      "aliases": [
+        "かけっこ（保護者同伴）"
+      ],
+      "target": "就学前児童（保護者同伴）",
+      "capacity_total": null,
+      "subquota": null,
+      "timeslot": "PM",
+      "scored": false,
+      "description": "直線20mを走る（保護者同伴OK）／人数枠なし・自由参加",
+      "_note": "e14「徒競走」とは別の種目"
+    },
+    {
+      "id": "e17",
+      "name": "みんなでヨーイドン",
+      "aliases": [],
+      "target": "就学前児童／1〜6年／中学生以上（女子）",
+      "capacity_total": 9,
+      "subquota": {
+        "type": "mixed",
+        "breakdown": {
+          "就学前児童": 2,
+          "1〜6年各学年": 1,
+          "中学生以上女子": 1
+        }
+      },
+      "timeslot": "PM",
+      "scored": true,
+      "description": "就学前児童から大人まで参加するリレー"
+    },
+    {
+      "id": "e18",
+      "name": "フットボールレース",
+      "aliases": [],
+      "target": "中学生以上（男子）",
+      "capacity_total": 5,
+      "subquota": null,
+      "timeslot": "PM",
+      "scored": true,
+      "description": "ラグビーボールをドリブルしながらリレー"
+    },
+    {
+      "id": "e19",
+      "name": "ボルガの舟歌（紅白対抗）",
+      "aliases": [
+        "ボルガの舟歌"
+      ],
+      "target": "1〜3年／4〜6年／中学生以上（男子）",
+      "capacity_total": 8,
+      "subquota": {
+        "type": "grade_band",
+        "breakdown": {
+          "低学年(1-3年)": 4,
+          "高学年(4-6年)": 2,
+          "中学生以上男子": 2
+        }
+      },
+      "timeslot": "PM",
+      "scored": true,
+      "description": "紅白対抗つな引き"
+    },
+    {
+      "id": "e20",
+      "name": "地区対抗リレー（中学生以上　女子）",
+      "aliases": [
+        "地区対抗リレー（女子）"
+      ],
+      "target": "中学生以上（女子）／35歳以上",
+      "capacity_total": 6,
+      "subquota": {
+        "type": "age_gender",
+        "breakdown": {
+          "中学生以上女子": 4,
+          "35歳以上女子": 2
+        }
+      },
+      "timeslot": "PM",
+      "scored": true,
+      "description": "全員半周のリレー"
+    },
+    {
+      "id": "e21",
+      "name": "地区対抗リレー（中学生以上　男子）",
+      "aliases": [
+        "地区対抗リレー（男子）"
+      ],
+      "target": "中学生／20代／30代／40代／50歳以上（男子）",
+      "capacity_total": 7,
+      "subquota": {
+        "type": "age_band",
+        "breakdown": {
+          "中学生〜29歳": 2,
+          "30代": 2,
+          "40代": 2,
+          "50歳以上": 1
+        }
+      },
+      "timeslot": "PM",
+      "scored": true,
+      "description": "中学生は1周、その他は半周のリレー",
+      "_note": "PDFでは中学生1・20代1で別枠だが、去年フォームの年齢選択肢が『中学生〜29歳』で一体化しているため区別できない。中学生〜29歳を1つの枠（2名）として統合する"
+    },
+    {
+      "id": "e22",
+      "name": "紅白玉入れ、入れて玉るか",
+      "aliases": [
+        "紅白玉入れ、入れて玉るか（紅白対抗）",
+        "紅白玉入れて玉るか",
+        "紅白玉入れ"
+      ],
+      "target": "1〜3年／就学前児童",
+      "capacity_total": 13,
+      "subquota": {
+        "type": "grade_band",
+        "breakdown": {
+          "低学年(1-3年)": 12,
+          "就学前児童": 1
+        }
+      },
+      "timeslot": "PM",
+      "scored": true,
+      "description": "玉入れ",
+      "_note": "去年フォームの内訳（1年2・2年1・3年2・未就学児1＝計6）とは異なる。2026年PDF按分（甲一分）を正とする"
+    },
+    {
+      "id": "e23",
+      "name": "デカパンサッカー",
+      "aliases": [],
+      "target": "中学生以上",
+      "capacity_total": 6,
+      "subquota": null,
+      "timeslot": "PM",
+      "scored": false,
+      "description": "大きいズボンに男女が入り、サッカー"
+    }
+  ],
+  "relay": {
+    "name": "リレー（町内対抗）",
+    "note": "得点競技の地区対抗リレー（e13,e15,e20,e21）とは別。町内対抗で1チームのみのため独立管理。",
+    "options": [
+      "走者として出てもいい",
+      "補欠（当日欠員が出たときだけ）ならいい",
+      "今年は遠慮したい"
+    ]
+  },
+  "age_categories": [
+    "就学前児童（保護者同伴で競技に参加）",
+    "就学前児童（一人で競技に参加できる）",
+    "小学１～３年生",
+    "小学４～６年生",
+    "中学生～２９歳",
+    "３０歳〜３４歳",
+    "３５歳〜３９歳",
+    "４０歳〜４９歳",
+    "５０歳〜"
+  ],
+  "age_category_to_subquota_band": {
+    "_note": "e21等の年代別小枠を判定する際に使うマッピング",
+    "中学生～２９歳": "中学生〜29歳",
+    "３０歳〜３４歳": "30代",
+    "３５歳〜３９歳": "30代",
+    "４０歳〜４９歳": "40代",
+    "５０歳〜": "50歳以上"
+  },
+  "wish_count_weight": {
+    "1〜2種目くらい": 2,
+    "3種目くらい": 3,
+    "4〜5種目くらい": 4,
+    "できるだけたくさん": 5
+  }
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = EVENTS_MASTER;
+}

@@ -1,0 +1,18 @@
+# 名簿・回答・出力結果などの実データは絶対にコミットしない
+# （設計ブリーフ 2章：データは一切コミットせず、ブラウザの中だけで扱う）
+/data/
+/private/
+*.xlsx
+*.xls
+*.local.csv
+名簿.csv
+回答.csv
+名簿_*.csv
+回答_*.csv
+
+# sample-data/ 配下のダミーデータ（テスト用の架空氏名のみ）はコミット対象
+!sample-data/**
+
+# OS/エディタ
+.DS_Store
+Thumbs.db
