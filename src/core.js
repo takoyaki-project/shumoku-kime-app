@@ -1,82 +1,14 @@
-// うんどうかい係 - コアロジック（名寄せ・割り当て・出力データ組み立て）
+// 種目決めアプリ - コアロジック（重複送信の統合・割り当て・出力データ組み立て）
 //
 // ブラウザ（<script>タグ、非モジュール）でもNode（テスト用）でも
 // そのまま読み込めるように、UMD風の素朴な形にしてある。
 // DOM操作は一切含まない。app.js から呼び出して使う。
+//
+// 名簿との突き合わせ（名寄せ）は行わない（設計ブリーフ3-1：大人の名簿が存在しないため、
+// フォーム回答CSVを唯一の情報源とする）。氏名はフォームの「名前」列をそのまま使う。
 
 (function (root) {
   'use strict';
-
-  // ============================================================
-  // 名寄せ（名前の突き合わせ）
-  // 設計ブリーフ 5章の手順どおり：
-  // NFKC正規化 → 空白/記号除去 → カタカナ→ひらがな → 長音/小書き文字除去
-  // ============================================================
-
-  var SMALL_KANA = { 'ぁ':1, 'ぃ':1, 'ぅ':1, 'ぇ':1, 'ぉ':1, 'っ':1, 'ゃ':1, 'ゅ':1, 'ょ':1, 'ゎ':1 };
-
-  function toHiragana(str) {
-    return str.replace(/[ァ-ヶ]/g, function (ch) {
-      return String.fromCharCode(ch.charCodeAt(0) - 0x60);
-    });
-  }
-
-  function compareKey(str) {
-    if (!str) return '';
-    var s = String(str).normalize('NFKC');
-    // 空白・記号・長音を除去
-    s = s.replace(/[\s　・,，、。.．\-‐–—ー\/／()（）]/g, '');
-    s = toHiragana(s);
-    var out = '';
-    for (var i = 0; i < s.length; i++) {
-      if (!SMALL_KANA[s[i]]) out += s[i];
-    }
-    return out;
-  }
-
-  function buildMemberIndex(meiboRows) {
-    return meiboRows.map(function (r, i) {
-      var sei = r['姓（カタカナ）'] || '';
-      var mei = r['名（カタカナ）'] || '';
-      return {
-        seq: i,
-        ageCategory: (r['学年'] || '').trim(),
-        sei: sei,
-        mei: mei,
-        displayName: r['表示名'] || (sei + ' ' + mei),
-        seiKey: compareKey(sei),
-        meiKey: compareKey(mei)
-      };
-    });
-  }
-
-  // formPerson: { ageCategory, sei, mei }
-  // 戻り値: { status: 'exact'|'candidates'|'unknown', member, candidates }
-  function matchToMeibo(members, formPerson) {
-    var seiKey = compareKey(formPerson.sei);
-    var meiKey = compareKey(formPerson.mei);
-    var fullKey = seiKey + meiKey;
-
-    var exact = members.filter(function (m) {
-      return m.ageCategory === formPerson.ageCategory && (m.seiKey + m.meiKey) === fullKey;
-    });
-    if (exact.length === 1) {
-      return { status: 'exact', member: exact[0], candidates: [] };
-    }
-    if (exact.length > 1) {
-      return { status: 'candidates', member: null, candidates: exact };
-    }
-
-    var partial = members.filter(function (m) {
-      if ((m.seiKey + m.meiKey) === fullKey) return true; // 名前は一致・学年だけ違う
-      if (m.ageCategory === formPerson.ageCategory && (m.seiKey === seiKey || m.meiKey === meiKey)) return true;
-      return false;
-    });
-    if (partial.length > 0) {
-      return { status: 'candidates', member: null, candidates: partial };
-    }
-    return { status: 'unknown', member: null, candidates: [] };
-  }
 
   // ============================================================
   // 種目名の正規化（Googleフォームの列見出し ⇔ 種目マスタ）
@@ -107,32 +39,25 @@
   }
 
   var META_COLUMNS = [
-    '姓（カタカナ）', '名（カタカナ）', '住所', '電話番号（携帯）',
-    '参加形式', '性別', '年齢', '参加区分'
+    'タイムスタンプ', '名前', 'ふりがな', '住所', '電話番号（携帯）',
+    '参加形式', '性別', '年齢'
   ];
-  var WISH_COUNT_HEADER_HINT = 'いくつくらい';
   var REMARKS_HEADER_HINT = 'ご質問';
-  var RELAY_HEADER_HINT_A = 'リレー';
-  var RELAY_HEADER_HINT_B = '町内対抗';
 
   // フォームCSVのヘッダーを分類する。
-  // 戻り値: { eventColumns: { eventId: [header,...] }, wishCountHeader, remarksHeader, relayHeader, unmatched: [header,...] }
+  // 戻り値: { eventColumns: { eventId: [header,...] }, remarksHeader, unmatched: [header,...] }
   function classifyFormHeaders(headers, eventsMaster) {
     var nameIndex = buildEventNameIndex(eventsMaster);
     var ignoreSet = {};
     (eventsMaster.ignore_columns || []).forEach(function (c) { ignoreSet[c] = true; });
 
     var eventColumns = {};
-    var wishCountHeader = null;
     var remarksHeader = null;
-    var relayHeader = null;
     var unmatched = [];
 
     headers.forEach(function (h) {
       if (META_COLUMNS.indexOf(h) !== -1) return;
       if (ignoreSet[h]) return;
-      if (h.indexOf(WISH_COUNT_HEADER_HINT) !== -1) { wishCountHeader = h; return; }
-      if (h.indexOf(RELAY_HEADER_HINT_A) !== -1 && h.indexOf(RELAY_HEADER_HINT_B) !== -1) { relayHeader = h; return; }
       if (h.indexOf(REMARKS_HEADER_HINT) !== -1) { remarksHeader = h; return; }
 
       var norm = normalizeEventHeader(h);
@@ -145,13 +70,7 @@
       }
     });
 
-    return {
-      eventColumns: eventColumns,
-      wishCountHeader: wishCountHeader,
-      remarksHeader: remarksHeader,
-      relayHeader: relayHeader,
-      unmatched: unmatched
-    };
+    return { eventColumns: eventColumns, remarksHeader: remarksHeader, unmatched: unmatched };
   }
 
   function firstNonEmpty(row, columns) {
@@ -159,12 +78,6 @@
       var v = (row[columns[i]] || '').trim();
       if (v) return v;
     }
-    return '';
-  }
-
-  function markFromValue(v) {
-    if (v === '出たい') return '○';
-    if (v === '避けたい') return '×';
     return '';
   }
 
@@ -184,17 +97,10 @@
     return eventsMaster.age_category_to_subquota_band[ageCategory];
   }
 
-  function periodCompatible(participationPeriod, eventTimeslot) {
-    if (participationPeriod === '午前のみ') return eventTimeslot === 'AM';
-    if (participationPeriod === '午後のみ') return eventTimeslot === 'PM';
-    // 「全日参加」または未記入・不明な値は制限しない（自己申告を信頼する設計方針に合わせる）
-    return true;
-  }
-
   // ============================================================
   // 小枠（サブクォータ）の構造化
-  // 学年内訳が「1年/2年/3年」のように名簿にない粒度の場合は、
-  // 名簿・回答データで判別できる学年帯（1-3年 / 4-6年）単位に
+  // 学年内訳が「1年/2年/3年」のように回答データにない粒度の場合は、
+  // 回答データで判別できる学年帯（1-3年 / 4-6年）単位に
   // 合算した1つの枠として扱う（データの粒度上の割り切り）。
   // ============================================================
 
@@ -313,37 +219,6 @@
     return null;
   }
 
-  // おまかせ埋め（無記入の人を回す）の際、対象学年・性別（target文言）に
-  // 照らして妥当かどうかを判定する。
-  // ※ 本人が明示的に「出たい」と答えた希望はこのチェックを通さない
-  //   （設計ブリーフ3-3：自己申告を信頼し、システム側で強制チェックしない）。
-  //   小枠（gender等）は対象年齢まで表現しきれない場合があるため
-  //   （例：e05はtype=genderだがtargetは「中学生以上」）、
-  //   小枠の有無に関わらずstage3では常にこのtarget判定も併用する。
-  function isPlausibleForTarget(target, person) {
-    var gb = gradeBandOf(person.ageCategory);
-    if (target.indexOf('就学前児童') !== -1) {
-      if (gb !== 'preschool') return false;
-      if (target.indexOf('一人で') !== -1 && person.ageCategory.indexOf('一人で') === -1) return false;
-      if (target.indexOf('保護者同伴') !== -1 && person.ageCategory.indexOf('保護者同伴') === -1) return false;
-    } else if (target.indexOf('小学生') !== -1 || target.indexOf('1〜6年') !== -1) {
-      if (gb !== 'low' && gb !== 'high') return false;
-    } else if (target.indexOf('4〜6年') !== -1 || target.indexOf('4-6年') !== -1) {
-      if (gb !== 'high') return false;
-    } else if (target.indexOf('1〜3年') !== -1 || target.indexOf('1-3年') !== -1) {
-      if (gb !== 'low') return false;
-    } else if (target.indexOf('中学生以上') !== -1 || target.indexOf('40歳以上') !== -1 ||
-               target.indexOf('50歳以上') !== -1 || target.indexOf('35歳以上') !== -1) {
-      if (gb !== 'adult') return false;
-      if (target.indexOf('50歳以上') !== -1 && person.ageCategory !== '５０歳〜') return false;
-      if (target.indexOf('40歳以上') !== -1 && ['４０歳〜４９歳', '５０歳〜'].indexOf(person.ageCategory) === -1) return false;
-      if (target.indexOf('35歳以上') !== -1 && ['３５歳〜３９歳', '４０歳〜４９歳', '５０歳〜'].indexOf(person.ageCategory) === -1) return false;
-    }
-    if ((target.indexOf('女子') !== -1 || target.indexOf('女児') !== -1 || target.indexOf('（女）') !== -1) && person.gender !== '女') return false;
-    if ((target.indexOf('男子') !== -1 || target.indexOf('男児') !== -1 || target.indexOf('（男）') !== -1) && person.gender !== '男') return false;
-    return true;
-  }
-
   // ============================================================
   // 割り当てトラッカー（種目×小枠ごとの残数管理）
   // ============================================================
@@ -377,16 +252,68 @@
         person.assignedEventIds[eventId] = true;
         person.assignments.push({ eventId: eventId, bucketKey: bucketKey });
       },
-      listAssigned: function (eventId, bucketKey) {
-        var b = buckets[k(eventId, bucketKey)];
-        return b ? b.assigned : [];
-      },
       allBucketsOf: function (eventId) {
         return Object.keys(buckets)
           .filter(function (key) { return key.indexOf(eventId + '::') === 0; })
           .map(function (key) { return { bucketKey: key.slice((eventId + '::').length), info: buckets[key] }; });
       }
     };
+  }
+
+  // ============================================================
+  // 重複送信の統合（設計ブリーフ 5章 / 指示書 ⑧）
+  // 「名前」「年齢」「性別」が完全一致する行が複数あれば、
+  // タイムスタンプが最も新しいものだけを残す。
+  // タイムスタンプが読み取れない場合は全件残し、「重複疑い」フラグを立てる。
+  // ============================================================
+
+  function normalizeNameForDedupe(name) {
+    return String(name || '').normalize('NFKC').replace(/[\s　]+/g, '');
+  }
+
+  // "2026/09/01 10:00:00" 形式を想定。読み取れなければ null。
+  function parseTimestamp(raw) {
+    if (!raw) return null;
+    var m = String(raw).trim().match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return null;
+    var t = new Date(
+      parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10),
+      parseInt(m[4], 10), parseInt(m[5], 10), m[6] ? parseInt(m[6], 10) : 0
+    ).getTime();
+    return isNaN(t) ? null : t;
+  }
+
+  function dedupeParticipants(participants) {
+    var groups = {};
+    var order = [];
+    participants.forEach(function (p) {
+      var key = normalizeNameForDedupe(p.name) + '::' + p.ageCategory + '::' + p.gender;
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(p);
+    });
+
+    var kept = [];
+    order.forEach(function (key) {
+      var group = groups[key];
+      if (group.length === 1) { kept.push(group[0]); return; }
+
+      var withTs = group.map(function (p) { return { p: p, t: parseTimestamp(p.timestampRaw) }; });
+      var allParsed = withTs.every(function (x) { return x.t != null; });
+
+      if (!allParsed) {
+        group.forEach(function (p) {
+          p.flag = '同一人物と思われる重複送信（' + group.length + '件）がありますが、タイムスタンプが読み取れず自動判定できません。人の目で確認してください。';
+        });
+        kept = kept.concat(group);
+        return;
+      }
+
+      withTs.sort(function (a, b) { return b.t - a.t; }); // 新しい順
+      kept.push(withTs[0].p);
+      // それ以外（古い方）は破棄する（設計ブリーフ5章）
+    });
+
+    return kept;
   }
 
   // ============================================================
@@ -399,33 +326,25 @@
       var participationForm = (row['参加形式'] || '').trim();
       if (participationForm !== '出場可') return; // 応援のみ等は割り当て対象外
 
-      var wishCountText = classification.wishCountHeader ? (row[classification.wishCountHeader] || '').trim() : '';
-      var weight = eventsMaster.wish_count_weight[wishCountText];
-
       var wishesByEvent = {};
       var rawWantCount = 0;
       Object.keys(classification.eventColumns).forEach(function (eventId) {
         var v = firstNonEmpty(row, classification.eventColumns[eventId]);
-        var mark = markFromValue(v);
-        if (mark) wishesByEvent[eventId] = mark;
-        if (mark === '○') rawWantCount++;
+        if (v) { wishesByEvent[eventId] = true; rawWantCount++; }
       });
 
+      var name = (row['名前'] || '').trim();
       var p = {
         seq: seq,
-        sei: (row['姓（カタカナ）'] || '').trim(),
-        mei: (row['名（カタカナ）'] || '').trim(),
+        timestampRaw: (row['タイムスタンプ'] || '').trim(),
+        name: name,
+        furigana: (row['ふりがな'] || '').trim(),
         gender: (row['性別'] || '').trim(),
         ageCategory: (row['年齢'] || '').trim(),
-        participationPeriod: (row['参加区分'] || '').trim(),
-        wishCountText: wishCountText,
-        wishTarget: weight != null ? weight : rawWantCount,
         wishesByEvent: wishesByEvent,
         rawWantCount: rawWantCount,
         remarks: classification.remarksHeader ? (row[classification.remarksHeader] || '').trim() : '',
-        relayPref: classification.relayHeader ? (row[classification.relayHeader] || '').trim() : '',
-        displayName: null, // 名寄せ後に設定
-        matchStatus: null,
+        displayName: name,
         assignedEventIds: {},
         assignments: [],
         resolvableWishes: [],
@@ -440,13 +359,8 @@
   function preprocessParticipant(p, eventsMaster) {
     var eventsById = eventsMaster._eventsById;
     Object.keys(p.wishesByEvent).forEach(function (eventId) {
-      if (p.wishesByEvent[eventId] !== '○') return;
       var event = eventsById[eventId];
       if (!event) return;
-      if (!periodCompatible(p.participationPeriod, event.timeslot)) {
-        p.notes.push('「' + event.name + '」を希望されましたが、参加区分（' + (p.participationPeriod || '未記入') + '）と時間帯が合わないため対象外です。');
-        return;
-      }
       var resolved = resolveSubquotaBucket(event, p, eventsMaster);
       if (!resolved) {
         p.notes.push('「' + event.name + '」を希望されましたが、性別・学年の対象枠に合致しないため対象外です。');
@@ -457,38 +371,28 @@
   }
 
   // ============================================================
-  // 3段階の割り当てロジック（設計ブリーフ 4章）
+  // 割り当てロジック（設計ブリーフ 4章）
+  //
+  // 優先度は「チェックした種目数が少ない人ほど高い」という固定順で決まり、
+  // 第1段階（保証パス）・第2段階（希望の上乗せパス）とも同じ優先順を使う
+  // （4-1・4-2）。そのため実装上は同一の優先順リストに対して、
+  // 割り当てられるものがなくなるまでラウンドを繰り返す1つのループでよい。
+  // 参加種目数の上限は設けない（4-1）。「×（避けたい）」の概念は存在しない
+  // （出場希望のチェックの有無のみ）。定員割れした種目に無記入の人を自動で
+  // 回す「おまかせ埋め」は行わない（4-2「定員割れの扱い」）。
   // ============================================================
 
-  function stage1_guarantee(participants, tracker) {
+  function assignByFixedPriority(participants, tracker) {
     var order = participants.slice().sort(function (a, b) {
-      return (a.rawWantCount - b.rawWantCount) || (a.wishTarget - b.wishTarget) || (a.seq - b.seq);
+      return (a.rawWantCount - b.rawWantCount) || (a.seq - b.seq);
     });
-    order.forEach(function (p) {
-      if (p.assignments.length > 0) return;
-      var candidates = p.resolvableWishes.filter(function (w) {
-        return !p.assignedEventIds[w.eventId] && tracker.remaining(w.eventId, w.bucketKey) > 0;
-      });
-      if (candidates.length === 0) return;
-      candidates.sort(function (a, b) {
-        return (tracker.remaining(a.eventId, a.bucketKey) - tracker.remaining(b.eventId, b.bucketKey)) ||
-          (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0);
-      });
-      tracker.assign(candidates[0].eventId, candidates[0].bucketKey, p);
-    });
-  }
 
-  function stage2_wishBonus(participants, tracker) {
     var changed = true;
     var guard = 0;
     while (changed && guard < 1000) {
       changed = false;
       guard++;
-      var order = participants.slice().sort(function (a, b) {
-        return (a.assignments.length - b.assignments.length) || (a.rawWantCount - b.rawWantCount) || (a.seq - b.seq);
-      });
       order.forEach(function (p) {
-        if (p.assignments.length >= p.wishTarget) return;
         var candidates = p.resolvableWishes.filter(function (w) {
           return !p.assignedEventIds[w.eventId] && tracker.remaining(w.eventId, w.bucketKey) > 0;
         });
@@ -503,39 +407,9 @@
     }
   }
 
-  function stage3_fill(participants, eventsMaster, tracker) {
-    eventsMaster.events.forEach(function (event) {
-      if (event.subquota == null && event.capacity_total == null) return; // 無制限の種目はおまかせ埋めの対象外
-      var buckets = getSubquotaBuckets(event);
-      buckets.forEach(function (b) {
-        var remaining = tracker.remaining(event.id, b.key);
-        if (remaining <= 0 || remaining === Infinity) return;
-
-        var pool = participants.filter(function (p) {
-          if (p.assignedEventIds[event.id]) return false;
-          if (!periodCompatible(p.participationPeriod, event.timeslot)) return false;
-          var mark = p.wishesByEvent[event.id];
-          if (mark === '×' || mark === '○') return false; // 無記入の人だけが対象
-          if (event.subquota && !b.match(p, eventsMaster)) return false;
-          return isPlausibleForTarget(event.target || '', p);
-        });
-
-        // 本人が「出られる」と申告した種目数（wishTarget）を超えてまで
-        // おまかせで積み増すことはしない。申告数に達していない人だけが対象。
-        var byPriority = function (a, c) { return (a.assignments.length - c.assignments.length) || (a.seq - c.seq); };
-        var ordered = pool.filter(function (p) { return p.assignments.length < p.wishTarget; }).sort(byPriority);
-
-        for (var i = 0; i < ordered.length && remaining > 0; i++) {
-          tracker.assign(event.id, b.key, ordered[i]);
-          remaining--;
-        }
-      });
-    });
-  }
-
   function finalizeFlags(participants) {
     participants.forEach(function (p) {
-      if (p.assignments.length === 0 && p.rawWantCount > 0) {
+      if (p.assignments.length === 0 && p.rawWantCount > 0 && !p.flag) {
         p.flag = '希望した種目にすべて外れました。手動での割り当てをご検討ください。';
       }
     });
@@ -548,26 +422,24 @@
     }
     participants.forEach(function (p) { preprocessParticipant(p, eventsMaster); });
     var tracker = createTracker(eventsMaster);
-    stage1_guarantee(participants, tracker);
-    stage2_wishBonus(participants, tracker);
-    stage3_fill(participants, eventsMaster, tracker);
+    assignByFixedPriority(participants, tracker);
     finalizeFlags(participants);
     return tracker;
   }
 
   // ============================================================
   // Excel出力用の行データ組み立て（設計ブリーフ 6章）
-  // 1シート構成。要確認の人を先頭にまとめ、続けて種目ごとの出場者一覧、
-  // 最後にリレー（町内対抗）希望者の参考情報を並べる。
+  // 1シート構成。要確認の人を先頭にまとめ、続けて種目ごとの出場者一覧
+  // （定員割れした小枠には「欠員」行を追加）を並べる。
   // ============================================================
 
-  var OUTPUT_COLUMNS = ['要確認', '種目名', '時間帯', '出場者名', '性別', '学年/年齢区分', '得点競技', '備考', 'システムメモ'];
+  var OUTPUT_COLUMNS = ['要確認', '種目名', '時間帯', '氏名', '性別', '学年/年齢区分', '得点競技', '備考'];
 
   function byDisplayName(a, b) {
     return a.displayName < b.displayName ? -1 : (a.displayName > b.displayName ? 1 : 0);
   }
 
-  function buildOutputRows(eventsMaster, participants) {
+  function buildOutputRows(eventsMaster, participants, tracker) {
     var rows = [];
 
     participants
@@ -578,12 +450,11 @@
           '要確認': p.flag,
           '種目名': '（未割当）',
           '時間帯': '-',
-          '出場者名': p.displayName,
+          '氏名': p.displayName,
           '性別': p.gender,
           '学年/年齢区分': p.ageCategory,
           '得点競技': '-',
-          '備考': p.remarks,
-          'システムメモ': p.notes.join(' / ')
+          '備考': p.remarks
         });
       });
 
@@ -597,32 +468,34 @@
           '要確認': '',
           '種目名': event.name,
           '時間帯': event.timeslot === 'AM' ? '午前' : '午後',
-          '出場者名': p.displayName,
+          '氏名': p.displayName,
           '性別': p.gender,
           '学年/年齢区分': p.ageCategory,
           '得点競技': event.scored ? '○' : '',
-          '備考': p.remarks,
-          'システムメモ': p.notes.join(' / ')
+          '備考': p.remarks
         });
       });
-    });
 
-    participants
-      .filter(function (p) { return p.relayPref; })
-      .sort(byDisplayName)
-      .forEach(function (p) {
-        rows.push({
-          '要確認': '',
-          '種目名': 'リレー（町内対抗・参考情報）',
-          '時間帯': '-',
-          '出場者名': p.displayName,
-          '性別': p.gender,
-          '学年/年齢区分': p.ageCategory,
-          '得点競技': '-',
-          '備考': p.remarks,
-          'システムメモ': '本人希望: ' + p.relayPref
+      // 定員割れの小枠は不足人数分だけ「欠員」行を追加する（無制限枠は対象外）
+      if (tracker) {
+        getSubquotaBuckets(event).forEach(function (b) {
+          var remaining = tracker.remaining(event.id, b.key);
+          if (remaining === Infinity || remaining <= 0) return;
+          for (var i = 0; i < remaining; i++) {
+            rows.push({
+              '要確認': '',
+              '種目名': event.name,
+              '時間帯': event.timeslot === 'AM' ? '午前' : '午後',
+              '氏名': '欠員',
+              '性別': '',
+              '学年/年齢区分': '',
+              '得点競技': event.scored ? '○' : '',
+              '備考': ''
+            });
+          }
         });
-      });
+      }
+    });
 
     return rows;
   }
@@ -632,20 +505,18 @@
   // ============================================================
 
   var Core = {
-    compareKey: compareKey,
-    buildMemberIndex: buildMemberIndex,
-    matchToMeibo: matchToMeibo,
     normalizeEventHeader: normalizeEventHeader,
     buildEventNameIndex: buildEventNameIndex,
     classifyFormHeaders: classifyFormHeaders,
     firstNonEmpty: firstNonEmpty,
-    markFromValue: markFromValue,
     gradeBandOf: gradeBandOf,
     ageBandOf: ageBandOf,
-    periodCompatible: periodCompatible,
     getSubquotaBuckets: getSubquotaBuckets,
     resolveSubquotaBucket: resolveSubquotaBucket,
     createTracker: createTracker,
+    normalizeNameForDedupe: normalizeNameForDedupe,
+    parseTimestamp: parseTimestamp,
+    dedupeParticipants: dedupeParticipants,
     buildParticipants: buildParticipants,
     preprocessParticipant: preprocessParticipant,
     runAssignment: runAssignment,

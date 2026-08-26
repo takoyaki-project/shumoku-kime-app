@@ -3,72 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>うんどうかい係</title>
+<title>種目決めアプリ</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
-  <h1>うんどうかい係</h1>
+  <h1>種目決めアプリ</h1>
   <p class="lead">町内会運動会の参加種目わりあてを自動化するツールです。データは一切外部に送信されず、このパソコンの中だけで処理されます。</p>
 </header>
 
 <main>
   <section id="step1" class="step">
-    <h2>① 名簿と回答を読み込む</h2>
-    <p>Googleフォームの回答をエクスポートしたCSVと、名簿のCSVを、それぞれ下の欄に貼り付けてください。</p>
+    <h2>① 回答CSVを貼り付けて実行する</h2>
+    <p>Googleフォームの回答をエクスポートしたCSVを、下の欄に貼り付けてください。名簿との突き合わせは行いません。</p>
 
-    <div class="grid2">
-      <div>
-        <label for="meiboInput">名簿CSV（学年,姓（カタカナ）,名（カタカナ）,表示名）</label>
-        <textarea id="meiboInput" rows="10" placeholder="ここに名簿CSVの中身を貼り付け"></textarea>
-      </div>
-      <div>
-        <label for="formInput">回答CSV（Googleフォームの回答）</label>
-        <textarea id="formInput" rows="10" placeholder="ここに回答CSVの中身を貼り付け"></textarea>
-      </div>
-    </div>
+    <label for="formInput">回答CSV（Googleフォームの回答）</label>
+    <textarea id="formInput" rows="12" placeholder="ここに回答CSVの中身を貼り付け"></textarea>
 
     <div class="actions">
-      <button id="runMatchBtn" class="primary">読み込んで名寄せする</button>
+      <button id="runAssignBtn" class="primary">実行する</button>
       <button id="loadSampleBtn" class="secondary">サンプルデータで試す</button>
     </div>
     <p id="step1Status" class="status"></p>
   </section>
 
-  <section id="step2" class="step hidden">
-    <h2>② 名寄せの確認</h2>
-    <p id="matchSummary"></p>
-    <div id="matchTableWrap" class="hidden">
-      <table>
-        <thead><tr><th>回答者</th><th>状態</th><th>対応</th></tr></thead>
-        <tbody id="matchTableBody"></tbody>
-      </table>
-    </div>
-    <div class="actions">
-      <button id="proceedToAssignBtn" class="primary">この内容で次へ進む</button>
-    </div>
-  </section>
-
-  <section id="step3" class="step hidden">
-    <h2>③ 割り当てを実行する</h2>
-    <p>種目の割り当てを計算します。実行後、結果を確認してExcelをダウンロードできます。</p>
-    <div class="actions">
-      <button id="runAssignBtn" class="primary">実行する</button>
-    </div>
-  </section>
-
   <section id="resultSection" class="step hidden">
-    <h2>結果</h2>
+    <h2>② 結果を確認してダウンロード</h2>
     <div id="resultSummary"></div>
     <div class="actions">
       <button id="downloadBtn" class="primary">Excel（.xlsx）をダウンロード</button>
     </div>
-    <p class="muted">要確認の人がいる場合も、Excelには「（未割当）」として出力され、要確認列に理由が入ります。最終判断は人の目で確認してください。</p>
+    <p class="note">要確認の人がいる場合も、Excelには「（未割当）」として出力され、要確認列に理由が入ります。定員割れした種目には「欠員」という行が入ります。最終判断は人の目で確認してください。</p>
   </section>
 </main>
 
 <footer>
-  <p class="muted">甲子園一番町 子供会向け MVP。困ったときは、去年までの手作業のやり方に戻ってもかまいません。</p>
+  <p class="muted">甲子園一番町 子供会向け MVP。困ったときは、手作業のやり方に戻ってもかまいません。</p>
 </footer>
 
 <script src="lib/papaparse.min.js"></script>
