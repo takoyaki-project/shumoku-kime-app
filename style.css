@@ -29,6 +29,18 @@ header {
   padding: 2rem 0 1rem;
 }
 
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.apple-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+}
+
 h1 {
   font-size: 2rem;
   margin-bottom: 0.4rem;
