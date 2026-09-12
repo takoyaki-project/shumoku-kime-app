@@ -14,10 +14,15 @@
   // 種目名の正規化（Googleフォームの列見出し ⇔ 種目マスタ）
   // ============================================================
 
+  // 種目マスタのnormalize_ruleに従う：先頭の記号・連番を除去し、さらに
+  // 文字列内部の空白（半角・全角）もすべて除去してから比較する
+  // （例：『徒競走（　就学前児童）』→『徒競走（就学前児童）』のように、
+  // フォーム側の見出しに余計な空白が挟まっていても一致させるため）。
   function normalizeEventHeader(header) {
     var s = String(header || '').normalize('NFKC').trim();
     s = s.replace(/^[☆０-９0-9①-⑳．.、]+/, '');
-    return s.trim();
+    s = s.replace(/[\s　]+/g, '');
+    return s;
   }
 
   function buildEventNameIndex(eventsMaster) {
@@ -98,9 +103,10 @@
 
   // ============================================================
   // 小枠（サブクォータ）の構造化
-  // 学年内訳が「1年/2年/3年」のように回答データにない粒度の場合は、
-  // 回答データで判別できる学年帯（1-3年 / 4-6年）単位に
-  // 合算した1つの枠として扱う（データの粒度上の割り切り）。
+  // フォームの年齢選択肢は学年帯（小学１～３年生／小学４～６年生）までしか
+  // 分からず、個別学年（1年/2年/3年…）は判定できない。そのため学年の
+  // 内訳を持たせたい種目は、判定可能な単位（学年帯全体、または種目全体）の
+  // 定員にまとめて種目マスタ側で定義する（データの粒度上の割り切り）。
   // ============================================================
 
   function getSubquotaBuckets(event) {
@@ -115,37 +121,6 @@
         return Object.keys(sq.breakdown).map(function (k) {
           return { key: k, capacity: sq.breakdown[k], match: function (p) { return p.gender === k; } };
         });
-
-      case 'grade': {
-        // breakdownは学年番号ごとの人数のみを持ち、性別の情報を含まない場合がある
-        // （例：e13/e15は「1年,2年,...」の内訳だが、対象学年は男児/女児で分かれる）。
-        // そのため性別条件はevent.targetの文言から補う。
-        var genderReq = null;
-        if (event.target) {
-          if (event.target.indexOf('女') !== -1) genderReq = '女';
-          else if (event.target.indexOf('男') !== -1) genderReq = '男';
-        }
-        var lowCap = 0, highCap = 0, hasLow = false, hasHigh = false;
-        Object.keys(sq.breakdown).forEach(function (k) {
-          var n = parseInt(k, 10);
-          if (n >= 1 && n <= 3) { lowCap += sq.breakdown[k]; hasLow = true; }
-          else if (n >= 4 && n <= 6) { highCap += sq.breakdown[k]; hasHigh = true; }
-        });
-        var out = [];
-        if (hasLow) out.push({
-          key: '1-3年(学年内訳合算)', capacity: lowCap, match: function (p) {
-            if (genderReq && p.gender !== genderReq) return false;
-            return gradeBandOf(p.ageCategory) === 'low';
-          }
-        });
-        if (hasHigh) out.push({
-          key: '4-6年(学年内訳合算)', capacity: highCap, match: function (p) {
-            if (genderReq && p.gender !== genderReq) return false;
-            return gradeBandOf(p.ageCategory) === 'high';
-          }
-        });
-        return out;
-      }
 
       case 'grade_band':
         return Object.keys(sq.breakdown).map(function (k) {
@@ -189,18 +164,23 @@
         });
 
       case 'mixed':
+        // 「就学前児童」「中学生以上女子」以外のキー（例：『小学生(1〜6年)』）は、
+        // 回答データで判別できる学年帯（1-3年 / 4-6年）を問わず、小学生をまとめた
+        // 1つの枠として扱う（フォームの年齢選択肢が学年帯までしか分からないため）。
         return Object.keys(sq.breakdown).map(function (k) {
           var cap = sq.breakdown[k];
           if (k === '就学前児童') {
             return { key: k, capacity: cap, match: function (p) { return gradeBandOf(p.ageCategory) === 'preschool'; } };
           }
-          if (k === '1〜6年各学年') {
-            return { key: k, capacity: cap, match: function (p) { var gb = gradeBandOf(p.ageCategory); return gb === 'low' || gb === 'high'; } };
-          }
           if (k === '中学生以上女子') {
             return { key: k, capacity: cap, match: function (p) { return gradeBandOf(p.ageCategory) === 'adult' && p.gender === '女'; } };
           }
-          return { key: k, capacity: cap, match: function () { return false; } };
+          return {
+            key: k, capacity: cap, match: function (p) {
+              var gb = gradeBandOf(p.ageCategory);
+              return gb === 'low' || gb === 'high';
+            }
+          };
         });
 
       default:
