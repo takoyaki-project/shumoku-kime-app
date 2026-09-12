@@ -172,8 +172,10 @@ const EVENTS_MASTER = {
     },
     {
       "id": "e12",
-      "name": "早飲み競走",
-      "aliases": [],
+      "name": "早飲み競争",
+      "aliases": [
+        "早飲み競走"
+      ],
       "target": "中学生以上",
       "capacity_total": 4,
       "subquota": {

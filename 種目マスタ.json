@@ -26,7 +26,7 @@
     {"id": "e11", "name": "ワイワイガヤガヤむむかで", "aliases": ["ワイワイガヤガヤむかで", "ワイワイ・ガヤガヤ・むかで", "ワイワイ・ガヤガヤ・むかで競走"], "target": "1〜3年／4〜6年／中学生以上", "capacity_total": 15,
       "subquota": {"type": "grade_band", "breakdown": {"1-3年": 6, "4-6年": 6, "中学生以上": 3}},
       "timeslot": "AM", "scored": true, "description": "6人組になり、むかでロープでリレー"},
-    {"id": "e12", "name": "早飲み競走", "aliases": [], "target": "中学生以上", "capacity_total": 4,
+    {"id": "e12", "name": "早飲み競争", "aliases": ["早飲み競走"], "target": "中学生以上", "capacity_total": 4,
       "subquota": {"type": "gender", "breakdown": {"男": 2, "女": 2}},
       "timeslot": "PM", "scored": true, "description": "ラムネ早飲みが入るリレー"},
     {"id": "e13", "name": "地区対抗リレー（小学生女子）", "aliases": ["地区対抗リレー（女児）"], "target": "1〜6年（女児）", "capacity_total": 12,
