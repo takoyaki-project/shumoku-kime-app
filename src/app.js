@@ -14,8 +14,11 @@
 
   function $(id) { return document.getElementById(id); }
 
+  // ヘッダー名をキーにしたオブジェクト化はしない（同名列が複数あると
+  // 後の列の値で前の列の値が上書きされてしまうため）。ヘッダー行を含む
+  // 配列のまま返し、以降は列インデックスで扱う。
   function parseCsv(text) {
-    var res = Papa.parse(text.trim(), { header: true, skipEmptyLines: true });
+    var res = Papa.parse(text.trim(), { header: false, skipEmptyLines: true });
     return res.data;
   }
 
@@ -35,13 +38,19 @@
         setStatus($('step1Status'), '回答CSVを貼り付けてください。', true);
         return;
       }
-      var formRows = parseCsv(formText);
+      var allRows = parseCsv(formText);
+      if (!allRows.length) {
+        setStatus($('step1Status'), '回答データが読み取れませんでした。1行目が見出し行になっているか確認してください。', true);
+        return;
+      }
+      var headers = allRows[0];
+      var formRows = allRows.slice(1);
       if (!formRows.length) {
         setStatus($('step1Status'), '回答データが読み取れませんでした。1行目が見出し行になっているか確認してください。', true);
         return;
       }
 
-      var classification = Core.classifyFormHeaders(Object.keys(formRows[0]), EVENTS_MASTER);
+      var classification = Core.classifyFormHeaders(headers, EVENTS_MASTER);
       var rawParticipants = Core.buildParticipants(formRows, classification, EVENTS_MASTER);
       var participants = Core.dedupeParticipants(rawParticipants);
       var duplicateCount = rawParticipants.length - participants.length;

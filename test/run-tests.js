@@ -10,7 +10,7 @@ const Core = require('../src/core.js');
 
 function readCsv(p) {
   const raw = fs.readFileSync(p, 'utf8');
-  const parsed = Papa.parse(raw, { header: true, skipEmptyLines: true });
+  const parsed = Papa.parse(raw, { header: false, skipEmptyLines: true });
   if (parsed.errors && parsed.errors.length) {
     console.error('CSV parse errors in', p, parsed.errors);
   }
@@ -18,8 +18,9 @@ function readCsv(p) {
 }
 
 const formPath = path.join(__dirname, '..', 'sample-data', 'dummy_form_responses.csv');
-const formRows = readCsv(formPath);
-const formHeaders = Object.keys(formRows[0]);
+const allRows = readCsv(formPath);
+const formHeaders = allRows[0];
+const formRows = allRows.slice(1);
 
 const classification = Core.classifyFormHeaders(formHeaders, EVENTS_MASTER);
 

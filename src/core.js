@@ -14,15 +14,8 @@
   // 種目名の正規化（Googleフォームの列見出し ⇔ 種目マスタ）
   // ============================================================
 
-  // papaparseはheader:trueのとき、同名列が複数あると "見出し", "見出し_1", "見出し_2"...
-  // のように末尾へ連番を振って重複を避ける。フォームは年齢分岐のため同じ種目名の列が
-  // 複数回登場する（指示書の注意点①②）ので、比較前にこの連番を取り除く必要がある。
-  function stripDuplicateSuffix(header) {
-    return String(header || '').replace(/_\d+$/, '');
-  }
-
   function normalizeEventHeader(header) {
-    var s = stripDuplicateSuffix(header).normalize('NFKC').trim();
+    var s = String(header || '').normalize('NFKC').trim();
     s = s.replace(/^[☆０-９0-9①-⑳．.、]+/, '');
     return s.trim();
   }
@@ -44,38 +37,44 @@
   ];
   var REMARKS_HEADER_HINT = 'ご質問';
 
-  // フォームCSVのヘッダーを分類する。
-  // 戻り値: { eventColumns: { eventId: [header,...] }, remarksHeader, unmatched: [header,...] }
+  // フォームCSVのヘッダー（配列。年齢分岐により同じ種目名の列が複数回
+  // 登場しうる）を、列インデックスベースで分類する。ヘッダー名をキーにした
+  // オブジェクト化はしない＝同名列があっても後続の列で前の列の値が
+  // 上書きされることがない（指示書の重複列対応）。
+  // 戻り値: { eventColumns: { eventId: [colIndex,...] }, remarksIndex, metaIndex: { 列名: colIndex }, unmatched: [header,...] }
   function classifyFormHeaders(headers, eventsMaster) {
     var nameIndex = buildEventNameIndex(eventsMaster);
     var ignoreSet = {};
     (eventsMaster.ignore_columns || []).forEach(function (c) { ignoreSet[c] = true; });
 
     var eventColumns = {};
-    var remarksHeader = null;
+    var remarksIndex = null;
+    var metaIndex = {};
     var unmatched = [];
 
-    headers.forEach(function (h) {
-      if (META_COLUMNS.indexOf(h) !== -1) return;
+    headers.forEach(function (h, colIndex) {
+      if (META_COLUMNS.indexOf(h) !== -1) { metaIndex[h] = colIndex; return; }
       if (ignoreSet[h]) return;
-      if (h.indexOf(REMARKS_HEADER_HINT) !== -1) { remarksHeader = h; return; }
+      if (h.indexOf(REMARKS_HEADER_HINT) !== -1) { remarksIndex = colIndex; return; }
 
       var norm = normalizeEventHeader(h);
       var eventId = nameIndex[norm];
       if (eventId) {
         if (!eventColumns[eventId]) eventColumns[eventId] = [];
-        eventColumns[eventId].push(h);
+        eventColumns[eventId].push(colIndex);
       } else {
         unmatched.push(h);
       }
     });
 
-    return { eventColumns: eventColumns, remarksHeader: remarksHeader, unmatched: unmatched };
+    return { eventColumns: eventColumns, remarksIndex: remarksIndex, metaIndex: metaIndex, unmatched: unmatched };
   }
 
-  function firstNonEmpty(row, columns) {
-    for (var i = 0; i < columns.length; i++) {
-      var v = (row[columns[i]] || '').trim();
+  // 1人の回答者の行（配列）について、同じ種目に対応する複数の列インデックスを
+  // 順に見て、最初に見つかった空でない値を採用する（指示書の duplicate_column_rule）。
+  function firstNonEmpty(row, colIndexes) {
+    for (var i = 0; i < colIndexes.length; i++) {
+      var v = (row[colIndexes[i]] || '').trim();
       if (v) return v;
     }
     return '';
@@ -320,10 +319,12 @@
   // 参加者オブジェクトの組み立て
   // ============================================================
 
+  // formRows: ヘッダー行を除いた、1行=1配列（列インデックスでアクセス）のデータ行群。
   function buildParticipants(formRows, classification, eventsMaster) {
     var participants = [];
+    var metaIndex = classification.metaIndex;
     formRows.forEach(function (row, seq) {
-      var participationForm = (row['参加形式'] || '').trim();
+      var participationForm = (row[metaIndex['参加形式']] || '').trim();
       if (participationForm !== '出場可') return; // 応援のみ等は割り当て対象外
 
       var wishesByEvent = {};
@@ -333,17 +334,17 @@
         if (v) { wishesByEvent[eventId] = true; rawWantCount++; }
       });
 
-      var name = (row['名前'] || '').trim();
+      var name = (row[metaIndex['名前']] || '').trim();
       var p = {
         seq: seq,
-        timestampRaw: (row['タイムスタンプ'] || '').trim(),
+        timestampRaw: (row[metaIndex['タイムスタンプ']] || '').trim(),
         name: name,
-        furigana: (row['ふりがな'] || '').trim(),
-        gender: (row['性別'] || '').trim(),
-        ageCategory: (row['年齢'] || '').trim(),
+        furigana: (row[metaIndex['ふりがな']] || '').trim(),
+        gender: (row[metaIndex['性別']] || '').trim(),
+        ageCategory: (row[metaIndex['年齢']] || '').trim(),
         wishesByEvent: wishesByEvent,
         rawWantCount: rawWantCount,
-        remarks: classification.remarksHeader ? (row[classification.remarksHeader] || '').trim() : '',
+        remarks: classification.remarksIndex != null ? (row[classification.remarksIndex] || '').trim() : '',
         displayName: name,
         assignedEventIds: {},
         assignments: [],
