@@ -42,11 +42,13 @@
   ];
   var REMARKS_HEADER_HINT = 'ご質問';
 
-  // フォームCSVのヘッダー（配列。年齢分岐により同じ種目名の列が複数回
-  // 登場しうる）を、列インデックスベースで分類する。ヘッダー名をキーにした
-  // オブジェクト化はしない＝同名列があっても後続の列で前の列の値が
-  // 上書きされることがない（指示書の重複列対応）。
-  // 戻り値: { eventColumns: { eventId: [colIndex,...] }, remarksIndex, metaIndex: { 列名: colIndex }, unmatched: [header,...] }
+  // フォームCSVのヘッダー（配列。年齢分岐により同じ種目名の列だけでなく、
+  // 「性別」「年齢」等の属性列も年齢セクションごとに複数回登場しうる）を、
+  // 列インデックスベースで分類する。ヘッダー名をキーにしたオブジェクト化は
+  // しない＝同名列があっても後続の列で前の列の値が上書きされることがない
+  // （指示書の重複列対応。種目列だけでなく属性列も同じ理由で複数列になりうる
+  // ため、metaIndexも単一indexではなく配列で持つ）。
+  // 戻り値: { eventColumns: { eventId: [colIndex,...] }, remarksIndex, metaIndex: { 列名: [colIndex,...] }, unmatched: [header,...] }
   function classifyFormHeaders(headers, eventsMaster) {
     var nameIndex = buildEventNameIndex(eventsMaster);
     var ignoreSet = {};
@@ -58,7 +60,11 @@
     var unmatched = [];
 
     headers.forEach(function (h, colIndex) {
-      if (META_COLUMNS.indexOf(h) !== -1) { metaIndex[h] = colIndex; return; }
+      if (META_COLUMNS.indexOf(h) !== -1) {
+        if (!metaIndex[h]) metaIndex[h] = [];
+        metaIndex[h].push(colIndex);
+        return;
+      }
       if (ignoreSet[h]) return;
       if (h.indexOf(REMARKS_HEADER_HINT) !== -1) { remarksIndex = colIndex; return; }
 
@@ -303,8 +309,11 @@
   function buildParticipants(formRows, classification, eventsMaster) {
     var participants = [];
     var metaIndex = classification.metaIndex;
+    function metaValue(row, columnName) {
+      return firstNonEmpty(row, metaIndex[columnName] || []);
+    }
     formRows.forEach(function (row, seq) {
-      var participationForm = (row[metaIndex['参加形式']] || '').trim();
+      var participationForm = metaValue(row, '参加形式');
       if (participationForm !== '出場可') return; // 応援のみ等は割り当て対象外
 
       var wishesByEvent = {};
@@ -314,14 +323,14 @@
         if (v) { wishesByEvent[eventId] = true; rawWantCount++; }
       });
 
-      var name = (row[metaIndex['名前']] || '').trim();
+      var name = metaValue(row, '名前');
       var p = {
         seq: seq,
-        timestampRaw: (row[metaIndex['タイムスタンプ']] || '').trim(),
+        timestampRaw: metaValue(row, 'タイムスタンプ'),
         name: name,
-        furigana: (row[metaIndex['ふりがな']] || '').trim(),
-        gender: (row[metaIndex['性別']] || '').trim(),
-        ageCategory: (row[metaIndex['年齢']] || '').trim(),
+        furigana: metaValue(row, 'ふりがな'),
+        gender: metaValue(row, '性別'),
+        ageCategory: metaValue(row, '年齢'),
         wishesByEvent: wishesByEvent,
         rawWantCount: rawWantCount,
         remarks: classification.remarksIndex != null ? (row[classification.remarksIndex] || '').trim() : '',
