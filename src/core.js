@@ -399,8 +399,10 @@
 
   function finalizeFlags(participants) {
     participants.forEach(function (p) {
-      if (p.assignments.length === 0 && p.rawWantCount > 0 && !p.flag) {
-        p.flag = '希望した種目にすべて外れました。手動での割り当てをご検討ください。';
+      if (p.assignments.length === 0 && !p.flag) {
+        p.flag = p.rawWantCount > 0
+          ? '希望した種目にすべて外れました。手動での割り当てをご検討ください。'
+          : '出場希望種目のチェックがありませんでした。手動での割り当てをご検討ください。';
       }
     });
   }
